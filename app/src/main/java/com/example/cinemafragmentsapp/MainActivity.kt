@@ -1,26 +1,25 @@
 package com.example.cinemafragmentsapp
 
 import android.net.Uri
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.util.SparseArray
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import at.huber.youtubeExtractor.VideoMeta
 import at.huber.youtubeExtractor.YouTubeExtractor
-import com.google.android.exoplayer2.source.ExtractorMediaSource
-
+import at.huber.youtubeExtractor.YtFile
+import com.google.android.exoplayer2.ExoPlayer
+import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory
 import com.google.android.exoplayer2.util.Util
-
-import at.huber.youtubeExtractor.VideoMeta
-import at.huber.youtubeExtractor.YtFile
-import com.google.android.exoplayer2.ExoPlayerFactory
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
 
-    private val exoPlayer by lazy { ExoPlayerFactory.newSimpleInstance(this) }
-    private var mediaSource: ExtractorMediaSource? = null
+    private val exoPlayer by lazy { ExoPlayer.Builder(this).build() }
+    private var mediaSource: ProgressiveMediaSource? = null
     private var videoCode = ""
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,8 +50,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun connectWithExtractor() {
-        object : YouTubeExtractor(this!!) {
-            override fun onExtractionComplete(ytFiles: SparseArray<YtFile>?, vMeta: VideoMeta) {
+
+        object : YouTubeExtractor(this.applicationContext) {
+            override fun onExtractionComplete(ytFiles: SparseArray<YtFile>?,
+                                               videoMeta: VideoMeta?) {
                 val iTag = 18
 
                 if (ytFiles?.get(iTag) != null && ytFiles?.get(iTag).url != null) {
@@ -64,28 +65,28 @@ class MainActivity : AppCompatActivity() {
                         Util.getUserAgent(this@MainActivity, "cansu")
                     )
 
-                    mediaSource = ExtractorMediaSource.Factory(dataSourceFactory)
-                        .createMediaSource(Uri.parse(downloadUrl))
+                    mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+                        .createMediaSource(MediaItem.fromUri(Uri.parse(downloadUrl)))
 
 
-                    exoPlayer.prepare(mediaSource, true, false)
+                    exoPlayer.setMediaSource(mediaSource!!)
+                    exoPlayer.prepare()
                     exoPlayer.playWhenReady = true
 
 
                 } else {
 
                     val toast =
-                        Toast.makeText(this@MainActivity, "Video Başlatılamadı Tekrar Deneyin", Toast.LENGTH_LONG)
+                        Toast.makeText(this@MainActivity, "Video cannot be started. Please try again.", Toast.LENGTH_LONG)
                     toast.show()
                 }
             }
-        }.extract("https://www.youtube.com/watch?v=$videoCode", true, true)
+        }.extract("https://www.youtube.com/watch?v=$videoCode")
     }
 
     override fun onPause() {
         super.onPause()
-        if (exoPlayer != null)
-            exoPlayer.playWhenReady = false
+        exoPlayer.playWhenReady = false
 
     }
 
